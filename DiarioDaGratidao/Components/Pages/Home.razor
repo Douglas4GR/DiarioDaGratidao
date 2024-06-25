@@ -1,7 +1,84 @@
 ﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using DiarioDaGratidao.Models
+@using DiarioDaGratidao.Data
+@inject BlocoDeNotasContext Context
+@inject IJSRuntime JSRuntime
 
-<PageTitle>Home</PageTitle>
+<h3>Bloco de Notas</h3>
 
-<h1>Hello, world!</h1>
+<button @onclick="SortearNota">Sortear Nota</button>
 
-Welcome to your new app.
+<EditForm Model="novaNota" OnValidSubmit="AdicionarNota">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div>
+        <label for="descricao">Descrição</label>
+        <InputText id="descricao" @bind-Value="novaNota.Descricao" />
+    </div>
+    <button type="submit">Adicionar Nota</button>
+</EditForm>
+
+<ul>
+    @if (notas != null && notas.Count > 0)
+    {
+        @foreach (var nota in notas)
+        {
+            <li>
+                @nota.Descricao (@nota.DataCriacao)
+                <button @onclick="() => DeletarNota(nota.Id)">Deletar</button>
+            </li>
+        }
+    }
+    else
+    {
+        <li>Nenhuma nota encontrada.</li>
+    }
+
+</ul>
+
+@code {
+    private List<Nota> notas = new List<Nota>();
+    private Nota novaNota = new Nota();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarNotas();
+    }
+
+    private async Task CarregarNotas()
+    {
+        notas = await Context.Notas.ToListAsync();
+    }
+
+    private async Task AdicionarNota()
+    {
+        novaNota.DataCriacao = DateTime.Now;
+        Context.Notas.Add(novaNota);
+        await Context.SaveChangesAsync();
+        novaNota = new Nota();
+        await CarregarNotas();
+    }
+
+    private async Task DeletarNota(int id)
+    {
+        var nota = await Context.Notas.FindAsync(id);
+        if (nota != null)
+        {
+            Context.Notas.Remove(nota);
+            await Context.SaveChangesAsync();
+            await CarregarNotas();
+        }
+    }
+
+    private async Task SortearNota()
+    {
+        var random = new Random();
+        var notasList = await Context.Notas.ToListAsync();
+        if (notasList.Count > 0)
+        {
+            var notaSorteada = notasList[random.Next(notasList.Count)];
+            await JSRuntime.InvokeVoidAsync("alert", $"Nota sorteada: {notaSorteada.Descricao} ({notaSorteada.DataCriacao})");
+        }
+    }
+}
